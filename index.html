@@ -90,6 +90,8 @@ tr.sel td{background:var(--soft)}
 .formula{font-family:var(--mono);font-size:16px;background:var(--soft);padding:10px 12px;border-radius:8px;overflow-x:auto;white-space:normal;overflow-wrap:anywhere}
 details summary{cursor:pointer;font-weight:600}
 .dot{cursor:pointer}
+.obs{margin-bottom:6px}
+.obs td,.obs th{text-align:center}
 .stepper{display:grid;gap:10px;border-top:1px solid var(--rule);padding-top:12px}
 button:disabled{opacity:.45;cursor:default}
 tr.cur td{background:var(--soft);font-weight:600}
@@ -105,6 +107,12 @@ tr.cur td{background:var(--soft);font-weight:600}
   <h1>The Best-Fit Line</h1>
   <p class="lede">Ten students reported how many hours they studied and the score they earned. Excel draws one line through these points. This page shows what that line tells us, how Excel chose it, how good it is, and whether its slope is real.</p>
 </header>
+
+<div class="panel obs">
+  <h3>The observed data: 10 students</h3>
+  <p class="note">These are the only actual scores we have. Each one is a dot on the graphs. For any other number of hours, the line gives a <b>prediction</b> (ŷ), not an actual score.</p>
+  <div class="tablewrap"><table id="tObs"></table></div>
+</div>
 
 <nav class="tabs" aria-label="Views">
   <a href="#use" data-v="use">1 · Use the line <small>Session 2</small></a>
@@ -134,6 +142,7 @@ tr.cur td{background:var(--soft);font-weight:600}
         <span class="big" id="predBig">73.05</span>
         <span class="num note" id="predCalc"></span>
       </div>
+      <div id="obsNote" class="say"></div>
       <div id="extrap" class="warn" hidden></div>
       <div class="say"><b>Slope 1.964.</b> Each extra hour of study goes with about <b>1.96 more points</b> in the <em>predicted</em> score. The triangle on the plot shows 5 hours → 9.8 points.</div>
       <div class="say"><b>Intercept 49.48.</b> The predicted score at 0 hours. Only Tom (1 hour) studied near 0, so treat this as the line's starting point, not a real forecast.</div>
@@ -337,11 +346,16 @@ function r1(){
   const yh=B0+B1*h;
   el("path",{d:`M${P.sx(h)},${P.sy(dom.y0)} V${P.sy(yh)} H${P.sx(0)}`,fill:"none",stroke:"var(--ssr)","stroke-width":2,"stroke-dasharray":"5 4"},P.c);
   el("circle",{cx:P.sx(h),cy:P.sy(yh),r:7,fill:"var(--ssr)"},P.top);
-  label(P,P.sx(h)+(h>24?-10:10),P.sy(yh)-10,`ŷ = ${f(yh)}`,h>24?"end":"start","var(--ssr)");
+  label(P,P.sx(h)+(h>24?-16:16),P.sy(yh)+22,`ŷ = ${f(yh)}`,h>24?"end":"start","var(--ssr)");
   // residual
   const d=D[s1],yp=B0+B1*d.x,e=d.y-yp;
   el("line",{x1:P.sx(d.x),x2:P.sx(d.x),y1:P.sy(d.y),y2:P.sy(yp),stroke:"var(--sse)","stroke-width":3},P.c);
   dots(P,null,s1,i=>{s1=i;r1()});
+  const match=D.filter(d=>d.x===h);
+  match.forEach(d=>el("circle",{cx:P.sx(d.x),cy:P.sy(d.y),r:12,fill:"none",stroke:"var(--ssr)","stroke-width":2.5},P.top));
+  obsNote.innerHTML=match.length
+    ?`<b>Observed data at ${h} hours:</b> ${match.map(d=>`${d.n} actually scored <b class="num">${d.y}</b> (miss ${f(d.y-yh)})`).join("; ")}. The line predicts ${f(yh)} for ${match.length>1?"both":"this student"}.`
+    :`<b>No student studied exactly ${h} hours</b>, so there is no actual score here. ${f(yh)} is only the line's prediction. Observed hours: 1, 5, 7, 8, 10, 11, 14, 15, 19.`;
   predBig.textContent=f(yh);
   predCalc.textContent=`ŷ = 49.48 + 1.964 × ${h} = ${f(yh)}`;
   extrap.hidden=!(h<1||h>19);
@@ -354,6 +368,9 @@ function r1(){
    <p class="note">${d.n} scored ${f(Math.abs(e),1)} points ${e>=0?"<b>above</b> the line (did better than predicted)":"<b>below</b> the line (did worse than predicted)"}.</p>`;
 }
 hours.addEventListener("input",r1);
+
+(function(){let h="<thead><tr><th>Student</th>"+D.map(d=>`<th>${d.n}</th>`).join("")+"</tr></thead><tbody>";
+  h+="<tr><td>Hours X</td>"+D.map(d=>`<td>${d.x}</td>`).join("")+"</tr><tr><td>Score Y</td>"+D.map(d=>`<td>${d.y}</td>`).join("")+"</tr></tbody>";tObs.innerHTML=h})();
 
 /* ---------- View 2 ---------- */
 let showSq=true,ghost=false,step=-1;
