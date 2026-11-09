@@ -202,8 +202,11 @@ tr.cur td{background:var(--soft);font-weight:600}
   <div class="grid2">
     <div class="panel">
       <h3>The SSE bowl</h3>
+      <div class="ctrl"><label for="bowlSlope">Slope of your line <output id="bowlOut"></output></label>
+        <input type="range" id="bowlSlope" min="-2" max="5" step="0.001" value="0.6"></div>
       <svg id="p-bowl" viewBox="0 0 640 300" role="img" aria-label="SSE for each slope, a bowl with its bottom at slope 1.964"></svg>
-      <p class="note">The curve shows the smallest SSE you can get for each slope. Your line is the dot. The bottom of the bowl is Excel's slope, <b class="num">1.964</b>. No other line gets lower.</p>
+      <p id="bowlRead" class="num"></p>
+      <p class="note">Drag the slope here or with the sliders above; both move the same line. The curve is the lowest SSE possible for each slope (with the best intercept for that slope). The dot is your line. If your intercept isn't the best one for your slope, the dot sits above the curve. The bottom of the bowl is Excel's slope, <b class="num">1.964</b>. No other line gets lower.</p>
     </div>
     <div class="panel">
       <h3>Why square the misses?</h3>
@@ -406,10 +409,14 @@ function r2bowl(b1,sse){
   el("polyline",{points:pts.join(" "),fill:"none",stroke:"var(--accent)","stroke-width":3},P.c);
   el("line",{x1:P.sx(B1),x2:P.sx(B1),y1:P.sy(1568.56),y2:P.sy(0),stroke:"var(--accent)","stroke-dasharray":"4 4"},P.c);
   label(P,P.sx(B1)+8,P.sy(1568.56)+22,"bottom: slope 1.964, SSE 1,568.6","start","var(--accent)");
-  const cy=Math.min(sse,6900);
+  const best=SST-2*b1*SXY+b1*b1*SXX,cy=Math.min(sse,6900);
+  if(sse-best>20)el("line",{x1:P.sx(b1),x2:P.sx(b1),y1:P.sy(Math.min(best,6900)),y2:P.sy(cy),stroke:"var(--ssr)","stroke-width":2,"stroke-dasharray":"3 3"},P.c);
+  bowlSlope.value=b1;bowlOut.textContent=f(b1,3);
+  bowlRead.innerHTML=`Your line: slope ${f(b1,3)}, SSE ${f(sse)} &nbsp;·&nbsp; Excel's line: slope 1.964, SSE 1,568.56`;
   el("circle",{cx:P.sx(b1),cy:P.sy(cy),r:8,fill:"var(--ssr)",stroke:"var(--surface)","stroke-width":2},P.top);
-  label(P,P.sx(b1)+(b1>3.5?-12:12),P.sy(cy)-10,sse>6900?"you (off the chart)":"you",b1>3.5?"end":"start","var(--ssr)");
+  label(P,P.sx(b1)+(b1>2.5?-14:14),P.sy(cy)+5,sse>6900?"you (off the chart)":"you",b1>2.5?"end":"start","var(--ssr)");
 }
+bowlSlope.addEventListener("input",()=>{ub1.value=bowlSlope.value;flatMsg.hidden=true;r2()});
 ub0.addEventListener("input",()=>{flatMsg.hidden=true;r2()});ub1.addEventListener("input",()=>{flatMsg.hidden=true;r2()});
 tglSq.onclick=()=>{showSq=!showSq;tglSq.setAttribute("aria-pressed",showSq);r2()};
 tglGhost.onclick=()=>{ghost=!ghost;tglGhost.setAttribute("aria-pressed",ghost);r2()};
