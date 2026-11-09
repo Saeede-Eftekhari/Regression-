@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Best-Fit Line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+
+/* Layout: one teaching column; a sticky tab bar switches four views; each view = goal card, plot, readouts */
+:root{
+  --bg:#F5F7F5; --surface:#FFFFFF; --ink:#16201B; --muted:#5B6862; --rule:#DAE2DD; --soft:#EDF2EF;
+  --accent:#006747; --accent-ink:#FFFFFF; --sst:#5B4BC4; --ssr:#1C7FB8; --sse:#C9502F; --warn-bg:#FFF4DC; --warn:#8A5A00;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body:"Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1412; --surface:#17201C; --ink:#E6ECE8; --muted:#9AA8A1; --rule:#2B3631; --soft:#1E2924;
+  --accent:#43C08C; --accent-ink:#0F1412; --sst:#A496FF; --ssr:#61B8EC; --sse:#F28363; --warn-bg:#3A2E12; --warn:#F2C46B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1412; --surface:#17201C; --ink:#E6ECE8; --muted:#9AA8A1; --rule:#2B3631; --soft:#1E2924;
+  --accent:#43C08C; --accent-ink:#0F1412; --sst:#A496FF; --ssr:#61B8EC; --sse:#F28363; --warn-bg:#3A2E12; --warn:#F2C46B; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1080px;margin:0 auto}
+header.top{padding-block:28px 12px;display:grid;gap:6px}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--display);font-weight:750;font-size:clamp(30px,5vw,46px);line-height:1.05;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:clamp(22px,3vw,28px);margin:0;line-height:1.15;text-wrap:balance}
+h3{font-size:18px;margin:0}
+p{margin:0}
+.lede{max-width:66ch;color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--rule)}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--ink);padding:8px 14px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center}
+nav.tabs a small{font-weight:400;color:var(--muted);font-size:12px}
+nav.tabs a[aria-current="page"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+nav.tabs a[aria-current="page"] small{color:var(--accent-ink);opacity:.85}
+section.view{display:grid;gap:18px;padding-top:20px}
+.goal{display:grid;gap:8px;padding:16px 18px;border-radius:12px;background:var(--soft)}
+.goal .q{font-family:var(--display);font-size:20px;font-weight:600}
+.grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px;display:grid;gap:12px;min-width:0}
+svg{width:100%;height:auto;display:block;font-family:var(--body)}
+svg text{fill:var(--muted);font-size:13px}
+.ctrl{display:grid;gap:4px}
+.ctrl label{font-weight:600;font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.ctrl label output{font-family:var(--mono);font-weight:600;color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:15px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:26px;font-weight:600}
+.read{display:grid;gap:6px}
+.kv{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--rule);padding-block:4px}
+.kv span:first-child{color:var(--muted)}
+.note{font-size:15px;color:var(--muted)}
+.warn{background:var(--warn-bg);color:var(--warn);padding:8px 12px;border-radius:8px;font-size:15px}
+.say{border-left:4px solid var(--accent);padding:4px 0 4px 12px;font-size:16px}
+.chip{justify-self:start;display:inline-block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--rule);color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:15px}
+.legend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{padding:6px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+th{font-weight:600;color:var(--muted);font-size:13px}
+th:first-child,td:first-child{text-align:left}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--body)}
+tr.sum td{font-weight:600;border-bottom:none}
+tr.sel td{background:var(--soft)}
+.hl-sst{color:var(--sst)} .hl-ssr{color:var(--ssr)} .hl-sse{color:var(--sse)}
+.col-on{background:var(--soft)}
+.bar{display:flex;height:34px;border-radius:8px;overflow:hidden;font-size:14px;font-weight:600;color:#fff}
+.bar div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:600px){.three{grid-template-columns:minmax(0,1fr)}}
+.term{border-radius:10px;padding:12px;border:1px solid var(--rule);background:var(--surface);display:grid;gap:4px}
+.term b{font-size:17px}
+.formula{font-family:var(--mono);font-size:16px;background:var(--soft);padding:10px 12px;border-radius:8px;overflow-x:auto;white-space:normal;overflow-wrap:anywhere}
+details summary{cursor:pointer;font-weight:600}
+.dot{cursor:pointer}
+.stepper{display:grid;gap:10px;border-top:1px solid var(--rule);padding-top:12px}
+button:disabled{opacity:.45;cursor:default}
+tr.cur td{background:var(--soft);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header class="top">
+  <span class="eyebrow">MGSC 3005 · Simple linear regression · ExamScores data</span>
+  <h1>The Best-Fit Line</h1>
+  <p class="lede">Ten students reported how many hours they studied and the score they earned. Excel draws one line through these points. This page shows what that line tells us, how Excel chose it, how good it is, and whether its slope is real.</p>
+</header>
+
+<nav class="tabs" aria-label="Views">
+  <a href="#use" data-v="use">1 · Use the line <small>Session 2</small></a>
+  <a href="#pick" data-v="pick">2 · How Excel picks it <small>Session 3</small></a>
+  <a href="#split" data-v="split">3 · How good is it? <small>Session 3</small></a>
+  <a href="#real" data-v="real">4 · Is the slope real? <small>Session 4</small></a>
+</nav>
+
+<!-- ============ VIEW 1 ============ -->
+<section class="view" id="v-use">
+  <div class="goal">
+    <span class="chip">Goal</span>
+    <p class="q">If a student studies a certain number of hours, what score should we expect?</p>
+    <p>Excel's line: <span class="num"><b>ŷ = 49.48 + 1.964 × hours</b></span>. The hat on ŷ means <em>predicted</em>, not actual.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <svg id="p-use" viewBox="0 0 640 400" role="img" aria-label="Scatterplot of hours and scores with the regression line"></svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Excel's line</span><span><i style="background:var(--sse)"></i>Residual (miss) for the selected student</span></div>
+      <p class="note">Click any student's dot to see their residual.</p>
+    </div>
+    <div class="panel">
+      <div class="ctrl"><label for="hours">Hours studied <output id="hoursOut">12</output></label>
+        <input type="range" id="hours" min="0" max="30" step="0.5" value="12"></div>
+      <div class="read">
+        <span class="note">Predicted score</span>
+        <span class="big" id="predBig">73.05</span>
+        <span class="num note" id="predCalc"></span>
+      </div>
+      <div id="extrap" class="warn" hidden></div>
+      <div class="say"><b>Slope 1.964.</b> Each extra hour of study goes with about <b>1.96 more points</b> in the <em>predicted</em> score. The triangle on the plot shows 5 hours → 9.8 points.</div>
+      <div class="say"><b>Intercept 49.48.</b> The predicted score at 0 hours. Only Tom (1 hour) studied near 0, so treat this as the line's starting point, not a real forecast.</div>
+      <div class="read" id="resRead"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIEW 2 ============ -->
+<section class="view" id="v-pick" hidden>
+  <div class="goal">
+    <span class="chip">Goal</span>
+    <p class="q">Many lines could pass through these points. How does Excel pick one?</p>
+    <p>Every line misses every student by some amount (the <b>residual</b> = actual − predicted). Excel picks the line whose misses, <b>squared and added up</b>, are as small as possible. That total is called <b>SSE</b>. Move the sliders and try to make SSE smaller than Excel's.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <svg id="p-pick" viewBox="0 0 640 400" role="img" aria-label="Your line with its residuals and squared residuals"></svg>
+      <div class="btns">
+        <button id="tglSq" aria-pressed="true">Show squared misses</button>
+        <button id="tglGhost" aria-pressed="false">Show Excel's line</button>
+      </div>
+      <p class="note">Each shaded square has the miss as its side, so its area is the squared miss. SSE is the total area of the squares.</p>
+      <div class="stepper">
+        <h3>Step through the misses, one student at a time</h3>
+        <div class="btns">
+          <button id="stStart" class="primary">Start with Excel's line</button>
+          <button id="stCur">Start with my line</button>
+          <button id="stPrev" disabled>&#9664; Previous</button>
+          <button id="stNext" disabled>Next &#9654;</button>
+          <button id="stAll" disabled>Show all at once</button>
+        </div>
+        <div id="stRead" class="read"></div>
+        <div class="tablewrap" id="stWrap" hidden><table id="stTable"></table></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ctrl"><label for="ub0">Intercept (starting height) <output id="ub0Out"></output></label>
+        <input type="range" id="ub0" min="20" max="100" step="0.01" value="62"></div>
+      <div class="ctrl"><label for="ub1">Slope (tilt) <output id="ub1Out"></output></label>
+        <input type="range" id="ub1" min="-2" max="5" step="0.001" value="0.6"></div>
+      <div class="formula" id="uEq"></div>
+      <div class="read">
+        <div class="kv"><span>Misses added up (Σ residuals)</span><span class="num" id="uSum"></span></div>
+        <div class="kv"><span>Squared misses added up (SSE)</span><span class="num" id="uSSE"></span></div>
+        <div class="kv"><span>Excel's line SSE</span><span class="num">1,568.56</span></div>
+      </div>
+      <div class="warn" id="uVerdict"></div>
+      <div class="btns">
+        <button id="bFlat">Try a flat line at the average</button>
+        <button id="bBest" class="primary">Jump to Excel's line</button>
+      </div>
+      <div id="flatMsg" class="say" hidden></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>The SSE bowl</h3>
+      <svg id="p-bowl" viewBox="0 0 640 300" role="img" aria-label="SSE for each slope, a bowl with its bottom at slope 1.964"></svg>
+      <p class="note">The curve shows the smallest SSE you can get for each slope. Your line is the dot. The bottom of the bowl is Excel's slope, <b class="num">1.964</b>. No other line gets lower.</p>
+    </div>
+    <div class="panel">
+      <h3>Why square the misses?</h3>
+      <p>If we only added the misses, positive and negative misses would cancel. A bad line could score 0. Squaring makes every miss count as positive, and it makes big misses count a lot more than small ones.</p>
+      <h3>Excel's shortcut</h3>
+      <p>Excel doesn't try lines one by one. Two formulas land exactly at the bottom of the bowl:</p>
+      <div class="formula">b₁ = SSxy ÷ SSxx = 519.5 ÷ 264.5 = 1.964</div>
+      <div class="formula">b₀ = ȳ − b₁·x̄ = 70.1 − 1.964 × 10.5 = 49.48</div>
+      <p class="note">The line always passes through the average point (x̄ = 10.5, ȳ = 70.1).</p>
+    </div>
+  </div>
+  <details class="panel">
+    <summary>Show the hand calculation for SSxx and SSxy</summary>
+    <div class="tablewrap"><table id="tHand"></table></div>
+  </details>
+</section>
+
+<!-- ============ VIEW 3 ============ -->
+<section class="view" id="v-split" hidden>
+  <div class="goal">
+    <span class="chip">Goal</span>
+    <p class="q">How much better is the line than just guessing the class average for everyone?</p>
+    <p>Without hours, our best guess for every student is the average score, <b class="num">70.1</b>. Each student's distance from that average splits into two pieces: the part the line explains, and the part left over.</p>
+  </div>
+  <div class="three">
+    <div class="term"><b class="hl-sst">Total · SST</b><span>How far each score is from the <b>average</b> (70.1). Square and add: the total spread in scores.</span><span class="num note">y − ȳ</span></div>
+    <div class="term"><b class="hl-ssr">Explained · SSR</b><span>How far the <b>line's prediction</b> is from the average. The part of the spread the line accounts for.</span><span class="num note">ŷ − ȳ</span></div>
+    <div class="term"><b class="hl-sse">Left over · SSE</b><span>How far the score is from the <b>line</b>. The residual: what the line can't explain.</span><span class="num note">y − ŷ</span></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="btns" role="group" aria-label="What to draw">
+        <button data-m="sst">Total</button><button data-m="ssr">Explained</button><button data-m="sse">Left over</button><button data-m="one">One student, all three</button>
+      </div>
+      <svg id="p-split" viewBox="0 0 640 400" role="img" aria-label="Distances from the average and from the line"></svg>
+      <div class="legend"><span><i style="background:var(--muted)"></i>Average score 70.1 (dashed)</span><span><i style="background:var(--accent)"></i>Excel's line</span></div>
+      <p class="note">Click a dot to pick a student.</p>
+    </div>
+    <div class="panel">
+      <div class="read" id="oneRead"></div>
+      <h3>Add up the squares</h3>
+      <div class="bar" aria-label="SST split into SSR and SSE">
+        <div style="width:39.4%;background:var(--ssr)">SSR 1,020.3</div>
+        <div style="width:60.6%;background:var(--sse)">SSE 1,568.6</div>
+      </div>
+      <div class="formula">SST = SSR + SSE<br>2,588.9 = 1,020.3 + 1,568.6</div>
+      <div class="say"><b>R² = SSR ÷ SST = 0.394.</b> About <b>39%</b> of the spread in exam scores is explained by hours studied. The other 61% comes from other things (ability, sleep, test nerves…).</div>
+      <div class="say"><b>Typical miss s<sub>e</sub> = √(SSE ÷ (n − 2)) = √(1,568.6 ÷ 8) = 14.0 points.</b> Predictions from this line are usually off by about 14 points.</div>
+    </div>
+  </div>
+  <div class="tablewrap"><table id="tSplit"></table></div>
+  <p class="note">For each student, total = explained + left over. After squaring, the sums still add up (SST = SSR + SSE) because Excel's line is the least-squares line.</p>
+</section>
+
+<!-- ============ VIEW 4 ============ -->
+<section class="view" id="v-real" hidden>
+  <div class="goal">
+    <span class="chip">Goal</span>
+    <p class="q">Our slope is 1.964. Could a slope that big happen just by luck, even if hours had nothing to do with scores?</p>
+    <p>Hypotheses: <span class="num">H₀: β₁ = 0</span> (no linear relationship) vs <span class="num">H₁: β₁ ≠ 0</span>. If H₀ were true, the scores could belong to anyone. So shuffle the scores among the students, refit the line, and see what slopes luck produces.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <svg id="p-shuf" viewBox="0 0 640 400" role="img" aria-label="Shuffled scores with their fitted line"></svg>
+      <div class="legend"><span><i style="background:var(--ssr)"></i>Line for shuffled scores</span><span><i style="background:var(--accent)"></i>Real line (slope 1.964)</span></div>
+      <div class="btns">
+        <button id="sh1" class="primary">Shuffle once</button>
+        <button id="sh1000">Shuffle 1,000 times</button>
+        <button id="shReset">Start over</button>
+      </div>
+      <p class="num note" id="shLast"></p>
+    </div>
+    <div class="panel">
+      <h3>Slopes from luck alone</h3>
+      <svg id="p-hist" viewBox="0 0 640 300" role="img" aria-label="Histogram of slopes from shuffled data"></svg>
+      <p id="shCount"></p>
+      <p class="note">That share is the p-value idea: how often luck alone gives a slope at least as far from 0 as ours.</p>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>The t test does this with a formula</h3>
+      <svg id="p-t" viewBox="0 0 640 260" role="img" aria-label="t distribution with df 8 and shaded tails beyond 2.28"></svg>
+    </div>
+    <div class="panel">
+      <div class="formula">SE(b₁) = s<sub>e</sub> ÷ √SSxx = 14.0 ÷ √264.5 = 0.861</div>
+      <div class="formula">t = b₁ ÷ SE(b₁) = 1.964 ÷ 0.861 = 2.28</div>
+      <div class="formula">df = n − 2 = 8 &nbsp;·&nbsp; p = 2 × P(t ≥ 2.28) = 0.052</div>
+      <div class="say"><b>Decision at α = 0.05:</b> 0.052 &gt; 0.05, so we <b>fail to reject H₀</b>. Not enough evidence of a linear relationship. It would be significant at α = 0.10. With only 10 students, a moderate pattern is hard to prove.</div>
+      <p class="note">Same recipe as the earlier t tests: (estimate − 0) ÷ standard error. In Excel's output, read the p-value in the <b>hours</b> row, not the Intercept row.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+const D=[["Tom",1,53],["Mary",5,74],["Sarah",7,59],["Oscar",8,43],["Cullyn",10,56],["Jaime",11,84],["Theresa",14,96],["Knut",15,69],["Jin-Mae",15,84],["Courtney",19,83]].map(([n,x,y])=>({n,x,y}));
+const XB=10.5,YB=70.1,SXX=264.5,SXY=519.5,SST=2588.9,B1=SXY/SXX,B0=YB-B1*XB;
+const NS="http://www.w3.org/2000/svg";
+const f=(v,d=2)=>(Math.round(v*10**d)/10**d).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}).replace("-","−");
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+function plot(svg,dom,o={}){
+  svg.innerHTML="";const W=640,H=+svg.getAttribute("viewBox").split(" ")[3];const m={l:50,r:14,t:14,b:44};
+  const sx=x=>m.l+(x-dom.x0)/(dom.x1-dom.x0)*(W-m.l-m.r), sy=y=>H-m.b-(y-dom.y0)/(dom.y1-dom.y0)*(H-m.t-m.b);
+  const id="c"+Math.random().toString(36).slice(2);
+  const cp=el("clipPath",{id},el("defs",{},svg));el("rect",{x:m.l,y:m.t,width:W-m.l-m.r,height:H-m.t-m.b},cp);
+  const g=el("g",{},svg);
+  for(const t of o.yt||[]){el("line",{x1:m.l,x2:W-m.r,y1:sy(t),y2:sy(t),stroke:"var(--rule)","stroke-width":1},g);el("text",{x:m.l-8,y:sy(t)+4,"text-anchor":"end"},g).textContent=t}
+  for(const t of o.xt||[]){el("text",{x:sx(t),y:H-m.b+18,"text-anchor":"middle"},g).textContent=t}
+  el("line",{x1:m.l,x2:W-m.r,y1:H-m.b,y2:H-m.b,stroke:"var(--muted)"},g);
+  if(o.xl)el("text",{x:(m.l+W-m.r)/2,y:H-6,"text-anchor":"middle"},g).textContent=o.xl;
+  if(o.yl){const t=el("text",{x:14,y:(m.t+H-m.b)/2,"text-anchor":"middle",transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`},g);t.textContent=o.yl}
+  const c=el("g",{"clip-path":`url(#${id})`},svg);const top=el("g",{},svg);
+  return {sx,sy,c,top,W,H,m};
+}
+const scat={xt:[0,5,10,15,20],yt:[40,50,60,70,80,90,100],xl:"Hours studied (X)",yl:"Exam score (Y)"};
+const DOM={x0:0,x1:20.5,y0:32,y1:104};
+function line(P,b0,b1,dom,attrs){el("line",Object.assign({x1:P.sx(dom.x0),x2:P.sx(dom.x1),y1:P.sy(b0+b1*dom.x0),y2:P.sy(b0+b1*dom.x1),"stroke-width":3,"stroke-linecap":"round"},attrs),P.c)}
+function dots(P,ys,sel,onPick,color){D.forEach((d,i)=>{const y=ys?ys[i]:d.y;const c=el("circle",{cx:P.sx(d.x),cy:P.sy(y),r:i===sel?8:6,fill:color||"var(--ink)",stroke:"var(--surface)","stroke-width":2,class:onPick?"dot":"",tabindex:onPick?0:-1},P.top);
+  if(onPick){const t=el("title",{},c);t.textContent=`${d.n}: ${d.x} h, ${d.y}`;c.addEventListener("click",()=>onPick(i));c.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onPick(i)}})}})}
+function label(P,x,y,txt,anchor="start",color="var(--ink)",w=600){const t=el("text",{x,y,"text-anchor":anchor,style:`fill:${color};font-weight:${w};font-size:14px`},P.top);t.textContent=txt;return t}
+
+/* ---------- View 1 ---------- */
+let s1=4;
+function r1(){
+  const h=+hours.value;hoursOut.textContent=h;
+  const dom={x0:0,x1:30,y0:32,y1:118};
+  const P=plot(document.getElementById("p-use"),dom,{xt:[0,5,10,15,20,25,30],yt:[40,60,80,100],xl:"Hours studied (X)",yl:"Exam score (Y)"});
+  el("rect",{x:P.sx(19),y:P.m.t,width:P.sx(30)-P.sx(19),height:P.sy(dom.y0)-P.m.t,fill:"var(--soft)"},P.c);
+  el("rect",{x:P.sx(0),y:P.m.t,width:P.sx(1)-P.sx(0),height:P.sy(dom.y0)-P.m.t,fill:"var(--soft)"},P.c);
+  label(P,P.sx(24.5),P.m.t+18,"No data here","middle","var(--muted)",400);
+  el("line",{x1:P.sx(0),x2:P.sx(30),y1:P.sy(100),y2:P.sy(100),stroke:"var(--sse)","stroke-dasharray":"2 4"},P.c);
+  label(P,P.sx(29.6),P.sy(100)-6,"max possible score 100","end","var(--sse)",400);
+  line(P,B0,B1,dom,{stroke:"var(--accent)"});
+  // slope triangle
+  const a=3,b=8;el("path",{d:`M${P.sx(a)},${P.sy(B0+B1*a)} H${P.sx(b)} V${P.sy(B0+B1*b)}`,fill:"none",stroke:"var(--accent)","stroke-width":1.5,"stroke-dasharray":"4 3"},P.c);
+  label(P,(P.sx(a)+P.sx(b))/2,P.sy(B0+B1*a)+17,"+5 hours","middle","var(--accent)");
+  label(P,P.sx(b)+5,(P.sy(B0+B1*a)+P.sy(B0+B1*b))/2+5,"+9.8 pts","start","var(--accent)");
+  // prediction guides
+  const yh=B0+B1*h;
+  el("path",{d:`M${P.sx(h)},${P.sy(dom.y0)} V${P.sy(yh)} H${P.sx(0)}`,fill:"none",stroke:"var(--ssr)","stroke-width":2,"stroke-dasharray":"5 4"},P.c);
+  el("circle",{cx:P.sx(h),cy:P.sy(yh),r:7,fill:"var(--ssr)"},P.top);
+  label(P,P.sx(h)+(h>24?-10:10),P.sy(yh)-10,`ŷ = ${f(yh)}`,h>24?"end":"start","var(--ssr)");
+  // residual
+  const d=D[s1],yp=B0+B1*d.x,e=d.y-yp;
+  el("line",{x1:P.sx(d.x),x2:P.sx(d.x),y1:P.sy(d.y),y2:P.sy(yp),stroke:"var(--sse)","stroke-width":3},P.c);
+  dots(P,null,s1,i=>{s1=i;r1()});
+  predBig.textContent=f(yh);
+  predCalc.textContent=`ŷ = 49.48 + 1.964 × ${h} = ${f(yh)}`;
+  extrap.hidden=!(h<1||h>19);
+  extrap.textContent=h>19?`Extrapolation: nobody in the data studied more than 19 hours. The line keeps rising, and past about 26 hours it predicts more than 100 points. Don't trust predictions outside 1 to 19 hours.`:`Extrapolation: nobody studied less than 1 hour. Be careful predicting outside 1 to 19 hours.`;
+  resRead.innerHTML=`<h3>${d.n}'s residual</h3>
+   <div class="kv"><span>Hours studied</span><span class="num">${d.x}</span></div>
+   <div class="kv"><span>Actual score y</span><span class="num">${d.y}</span></div>
+   <div class="kv"><span>Predicted ŷ</span><span class="num">${f(yp)}</span></div>
+   <div class="kv"><span>Residual e = y − ŷ</span><span class="num" style="color:var(--sse);font-weight:600">${f(e)}</span></div>
+   <p class="note">${d.n} scored ${f(Math.abs(e),1)} points ${e>=0?"<b>above</b> the line (did better than predicted)":"<b>below</b> the line (did worse than predicted)"}.</p>`;
+}
+hours.addEventListener("input",r1);
+
+/* ---------- View 2 ---------- */
+let showSq=true,ghost=false,step=-1;
+const sseOf=(b0,b1)=>D.reduce((s,d)=>s+(d.y-b0-b1*d.x)**2,0);
+function r2(){
+  const b0=+ub0.value,b1=+ub1.value;ub0Out.textContent=f(b0);ub1Out.textContent=f(b1,3);
+  uEq.textContent=`Your line: ŷ = ${f(b0)} ${b1<0?"−":"+"} ${f(Math.abs(b1),3)} × hours`;
+  const P=plot(document.getElementById("p-pick"),DOM,scat);
+  if(ghost)line(P,B0,B1,DOM,{stroke:"var(--accent)","stroke-dasharray":"7 6","stroke-width":2,opacity:.8});
+  line(P,b0,b1,DOM,{stroke:"var(--ssr)"});
+  let sum=0,sse=0;
+  D.forEach((d,i)=>{const yp=b0+b1*d.x,e=d.y-yp;sum+=e;sse+=e*e;
+    if(step>=0&&i>step)return;
+    const cur=i===step,x=P.sx(d.x),y1=P.sy(d.y),y2=P.sy(yp),side=Math.abs(y1-y2);
+    if(showSq){const left=d.x>14;el("rect",{x:left?x-side:x,y:Math.min(y1,y2),width:side,height:side,fill:"var(--sse)","fill-opacity":cur?.3:.13,stroke:"var(--sse)","stroke-opacity":cur?1:.5,"stroke-width":cur?2:1},P.c)}
+    el("line",{x1:x,x2:x,y1,y2,stroke:"var(--sse)","stroke-width":cur?4:2.5},P.c);
+    if(cur){el("circle",{cx:x,cy:y2,r:5,fill:"var(--ssr)"},P.top);
+      el("rect",{x:P.m.l+6,y:P.m.t+4,width:250,height:44,rx:6,fill:"var(--surface)",stroke:"var(--sse)"},P.top);
+      label(P,P.m.l+16,P.m.t+22,`${d.n}: miss = ${d.y} − ${f(yp)} = ${f(e)}`,"start","var(--sse)");
+      label(P,P.m.l+16,P.m.t+40,`squared miss = ${f(e*e)}`,"start","var(--sse)",400)}});
+  dots(P,null,step);
+  r2step(b0,b1);
+  uSum.textContent=f(sum);uSSE.textContent=f(sse);
+  const gap=sse-1568.56;
+  uVerdict.className=gap<0.5?"say":"warn";
+  uVerdict.innerHTML=gap<0.5?"<b>You found Excel's line.</b> This is the smallest SSE any line can get.":`Your SSE is <b class="num">${f(gap)}</b> more than Excel's. Keep adjusting: can you get lower than 1,568.56?`;
+  r2bowl(b1,sse);
+}
+function r2bowl(b1,sse){
+  const svg=document.getElementById("p-bowl");const dom={x0:-2,x1:5,y0:0,y1:7000};
+  const P=plot(svg,dom,{xt:[-2,-1,0,1,2,3,4,5],yt:[0,2000,4000,6000],xl:"Slope of the line",yl:"SSE"});
+  const pts=[];for(let s=-2;s<=5.001;s+=0.05)pts.push(`${P.sx(s)},${P.sy(SST-2*s*SXY+s*s*SXX)}`);
+  el("polyline",{points:pts.join(" "),fill:"none",stroke:"var(--accent)","stroke-width":3},P.c);
+  el("line",{x1:P.sx(B1),x2:P.sx(B1),y1:P.sy(1568.56),y2:P.sy(0),stroke:"var(--accent)","stroke-dasharray":"4 4"},P.c);
+  label(P,P.sx(B1)+8,P.sy(1568.56)+22,"bottom: slope 1.964, SSE 1,568.6","start","var(--accent)");
+  const cy=Math.min(sse,6900);
+  el("circle",{cx:P.sx(b1),cy:P.sy(cy),r:8,fill:"var(--ssr)",stroke:"var(--surface)","stroke-width":2},P.top);
+  label(P,P.sx(b1)+(b1>3.5?-12:12),P.sy(cy)-10,sse>6900?"you (off the chart)":"you",b1>3.5?"end":"start","var(--ssr)");
+}
+ub0.addEventListener("input",()=>{flatMsg.hidden=true;r2()});ub1.addEventListener("input",()=>{flatMsg.hidden=true;r2()});
+tglSq.onclick=()=>{showSq=!showSq;tglSq.setAttribute("aria-pressed",showSq);r2()};
+tglGhost.onclick=()=>{ghost=!ghost;tglGhost.setAttribute("aria-pressed",ghost);r2()};
+bFlat.onclick=()=>{ub0.value=70.1;ub1.value=0;r2();flatMsg.hidden=false;
+  flatMsg.innerHTML="<b>The flat line at the average:</b> its misses add up to <b>0</b>, yet it ignores hours completely and its SSE is 2,588.9. Adding raw misses can't tell good lines from bad ones. That's why we square them."};
+bBest.onclick=()=>{ub0.value=B0.toFixed(2);ub1.value=B1.toFixed(3);flatMsg.hidden=true;r2()};
+(function(){let h="<thead><tr><th>Student</th><th>x</th><th>y</th><th>x − x̄</th><th>y − ȳ</th><th>(x − x̄)²</th><th>(x − x̄)(y − ȳ)</th></tr></thead><tbody>";
+  D.forEach(d=>{const a=d.x-XB,b=d.y-YB;h+=`<tr><td>${d.n}</td><td>${d.x}</td><td>${d.y}</td><td>${f(a,1)}</td><td>${f(b,1)}</td><td>${f(a*a)}</td><td>${f(a*b)}</td></tr>`});
+  h+=`<tr class="sum"><td>Sum</td><td>x̄ = 10.5</td><td>ȳ = 70.1</td><td>0</td><td>0</td><td>SSxx = 264.50</td><td>SSxy = 519.50</td></tr></tbody>`;tHand.innerHTML=h})();
+
+function r2step(b0,b1){
+  [stPrev,stNext,stAll].forEach(b=>b.disabled=step<0);
+  if(step<0){stRead.innerHTML='<p class="note">Press a start button. Each press of Next adds one student: their actual score, the line\'s prediction, the miss, the squared miss, and the running total. After the 10th student, the running total is SSE.</p>';stWrap.hidden=true;return}
+  stPrev.disabled=step===0;stNext.disabled=step===D.length-1;
+  const d=D[step],yp=b0+b1*d.x,e=d.y-yp;let run=0;
+  let h="<thead><tr><th>Student</th><th>Actual y</th><th>Predicted ŷ</th><th>Miss y − ŷ</th><th>Squared</th><th>Running total</th></tr></thead><tbody>";
+  for(let i=0;i<=step;i++){const q=D[i],p=b0+b1*q.x,m=q.y-p;run+=m*m;
+    h+=`<tr${i===step?' class="cur"':""}><td>${q.n}</td><td>${q.y}</td><td>${f(p)}</td><td>${f(m)}</td><td>${f(m*m)}</td><td>${f(run)}</td></tr>`}
+  stTable.innerHTML=h+"</tbody>";stWrap.hidden=false;
+  const done=step===D.length-1;
+  stRead.innerHTML=`<p><b>Student ${step+1} of 10: ${d.n}</b> studied ${d.x} hours.</p>
+   <p class="num">ŷ = ${f(b0)} ${b1<0?"−":"+"} ${f(Math.abs(b1),3)} × ${d.x} = ${f(yp)}</p>
+   <p class="num">miss = ${d.y} − ${f(yp)} = <b style="color:var(--sse)">${f(e)}</b> &nbsp;→&nbsp; squared = ${f(e*e)}</p>
+   <p>${e>=0?"The dot is <b>above</b> the line.":"The dot is <b>below</b> the line."} Running total of squared misses: <b class="num">${f(run)}</b></p>
+   ${done?`<div class="say"><b>That's all 10 students. SSE = ${f(run)}.</b> ${Math.abs(run-1568.56)<0.5?"This is Excel's line, and no other line gives a smaller total.":"Excel's line gives 1,568.56. Try stepping through Excel's line to compare."}</div>`:""}`;
+}
+stStart.onclick=()=>{ub0.value=B0.toFixed(2);ub1.value=B1.toFixed(3);flatMsg.hidden=true;step=0;r2()};
+stCur.onclick=()=>{step=0;r2()};
+stPrev.onclick=()=>{if(step>0){step--;r2()}};
+stNext.onclick=()=>{if(step<D.length-1){step++;r2()}};
+stAll.onclick=()=>{step=-1;r2()};
+
+/* ---------- View 3 ---------- */
+let mode="sst",s3=6;
+const COL={sst:"var(--sst)",ssr:"var(--ssr)",sse:"var(--sse)"};
+function r3(){
+  document.querySelectorAll("[data-m]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
+  const P=plot(document.getElementById("p-split"),DOM,scat);
+  el("line",{x1:P.sx(0),x2:P.sx(20.5),y1:P.sy(YB),y2:P.sy(YB),stroke:"var(--muted)","stroke-width":2,"stroke-dasharray":"6 5"},P.c);
+  label(P,P.sx(0.3),P.sy(YB)-7,"average 70.1","start","var(--muted)",600);
+  line(P,B0,B1,DOM,{stroke:"var(--accent)"});
+  D.forEach((d,i)=>{const x=P.sx(d.x),yp=B0+B1*d.x;
+    if(mode==="one"){if(i!==s3)return;
+      el("line",{x1:x-9,x2:x-9,y1:P.sy(YB),y2:P.sy(d.y),stroke:COL.sst,"stroke-width":5},P.c);
+      el("line",{x1:x+9,x2:x+9,y1:P.sy(YB),y2:P.sy(yp),stroke:COL.ssr,"stroke-width":5},P.c);
+      el("line",{x1:x+9,x2:x+9,y1:P.sy(yp),y2:P.sy(d.y),stroke:COL.sse,"stroke-width":5},P.c);
+            return}
+    const [a,b]=mode==="sst"?[YB,d.y]:mode==="ssr"?[YB,yp]:[yp,d.y];
+    el("line",{x1:x,x2:x,y1:P.sy(a),y2:P.sy(b),stroke:COL[mode],"stroke-width":4,opacity:i===s3?1:.75},P.c)});
+  dots(P,null,s3,i=>{s3=i;r3()});
+  const d=D[s3],yp=B0+B1*d.x;
+  oneRead.innerHTML=`<h3>${d.n} (${d.x} hours, scored ${d.y})</h3>
+   <div class="kv"><span class="hl-sst">Total: score − average</span><span class="num">${d.y} − 70.1 = ${f(d.y-YB)}</span></div>
+   <div class="kv"><span class="hl-ssr">Explained: prediction − average</span><span class="num">${f(yp)} − 70.1 = ${f(yp-YB)}</span></div>
+   <div class="kv"><span class="hl-sse">Left over: score − prediction</span><span class="num">${d.y} − ${f(yp)} = ${f(d.y-yp)}</span></div>
+   <p class="num note">${f(d.y-YB)} = ${f(yp-YB)} + ${f(d.y-yp)}</p>`;
+  let h=`<thead><tr><th>Student</th><th>Score y</th><th>Predicted ŷ</th><th class="hl-sst">Total y − ȳ</th><th class="hl-sst">squared</th><th class="hl-ssr">Explained ŷ − ȳ</th><th class="hl-ssr">squared</th><th class="hl-sse">Left over y − ŷ</th><th class="hl-sse">squared</th></tr></thead><tbody>`;
+  const on=k=>(mode===k||mode==="one")?' class="col-on"':"";
+  D.forEach((d,i)=>{const yp=B0+B1*d.x,t=d.y-YB,r=yp-YB,e=d.y-yp;
+    h+=`<tr${i===s3?' class="sel"':""}><td>${d.n}</td><td>${d.y}</td><td>${f(yp)}</td><td${on("sst")}>${f(t)}</td><td${on("sst")}>${f(t*t)}</td><td${on("ssr")}>${f(r)}</td><td${on("ssr")}>${f(r*r)}</td><td${on("sse")}>${f(e)}</td><td${on("sse")}>${f(e*e)}</td></tr>`});
+  h+=`<tr class="sum"><td>Sum</td><td></td><td></td><td>0</td><td class="hl-sst">SST = 2,588.90</td><td>0</td><td class="hl-ssr">SSR = 1,020.34</td><td>0</td><td class="hl-sse">SSE = 1,568.56</td></tr></tbody>`;
+  tSplit.innerHTML=h;
+}
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{mode=b.dataset.m;r3()});
+
+/* ---------- View 4 ---------- */
+let seed=20261108;const rnd=()=>{seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296};
+const slopeOf=ys=>D.reduce((s,d,i)=>s+(d.x-XB)*(ys[i]-YB),0)/SXX;
+function shuffle(){const a=D.map(d=>d.y);for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+let slopes=[],last=null;
+function addShuffles(n){for(let k=0;k<n;k++){const ys=shuffle();slopes.push(slopeOf(ys));last=ys}}
+function r4(){
+  const P=plot(document.getElementById("p-shuf"),DOM,scat);
+  line(P,B0,B1,DOM,{stroke:"var(--accent)","stroke-dasharray":"7 6","stroke-width":2});
+  if(last){const b=slopeOf(last);line(P,YB-b*XB,b,DOM,{stroke:"var(--ssr)"});dots(P,last,-1,null,"var(--ssr)");
+    shLast.textContent=`Latest shuffle: slope = ${f(b)}${Math.abs(b)>=B1?"  (as extreme as the real 1.964)":""}`}
+  else{dots(P);shLast.textContent="Real data shown. Press Shuffle to mix up the scores."}
+  const H=document.getElementById("p-hist");const dom={x0:-4,x1:4,y0:0,y1:1};
+  const w=0.25,bins=new Array(32).fill(0);slopes.forEach(s=>{const k=Math.floor((s+4)/w);if(k>=0&&k<32)bins[k]++});
+  const mx=Math.max(10,...bins);dom.y1=mx*1.15;
+  const Q=plot(H,dom,{xt:[-4,-3,-2,-1,0,1,2,3,4],yt:[],xl:"Slope from shuffled scores"});
+  bins.forEach((c,k)=>{if(!c)return;const x0=-4+k*w,ext=Math.abs(x0+w/2)>=B1;
+    el("rect",{x:Q.sx(x0)+1,y:Q.sy(c),width:Q.sx(x0+w)-Q.sx(x0)-2,height:Q.sy(0)-Q.sy(c),fill:ext?"var(--sse)":"var(--ssr)","fill-opacity":ext?.95:.55},Q.c)});
+  [B1,-B1].forEach(v=>{el("line",{x1:Q.sx(v),x2:Q.sx(v),y1:Q.sy(0),y2:Q.m.t,stroke:"var(--accent)","stroke-width":2.5},Q.top);
+    label(Q,Q.sx(v)+(v>0?6:-6),Q.m.t+14,v>0?"+1.964 (ours)":"−1.964",v>0?"start":"end","var(--accent)")});
+  const n=slopes.length,k=slopes.filter(s=>Math.abs(s)>=B1).length;
+  shCount.innerHTML=n?`<b class="num">${k.toLocaleString()}</b> of <b class="num">${n.toLocaleString()}</b> shuffles (<b class="num">${f(100*k/n,1)}%</b>) gave a slope at least as far from 0 as 1.964.`:"No shuffles yet.";
+}
+sh1.onclick=()=>{addShuffles(1);r4()};sh1000.onclick=()=>{addShuffles(1000);r4()};shReset.onclick=()=>{slopes=[];last=null;r4()};
+function r4t(){
+  const svg=document.getElementById("p-t");const dom={x0:-4.5,x1:4.5,y0:0,y1:0.45};
+  const P=plot(svg,dom,{xt:[-4,-3,-2,-1,0,1,2,3,4],yt:[],xl:"t with df = 8, if H₀ is true"});
+  const pdf=t=>0.386699*Math.pow(1+t*t/8,-4.5);
+  const path=(a,b)=>{let s=`M${P.sx(a)},${P.sy(0)}`;for(let t=a;t<=b+1e-9;t+=0.02)s+=` L${P.sx(t)},${P.sy(pdf(t))}`;return s+` L${P.sx(b)},${P.sy(0)}Z`};
+  el("path",{d:path(-4.5,4.5),fill:"var(--soft)",stroke:"var(--ink)","stroke-width":2},P.c);
+  el("path",{d:path(-4.5,-2.281),fill:"var(--sse)"},P.c);el("path",{d:path(2.281,4.5),fill:"var(--sse)"},P.c);
+  el("line",{x1:P.sx(2.281),x2:P.sx(2.281),y1:P.sy(0),y2:P.sy(0.3),stroke:"var(--ssr)","stroke-width":3},P.top);
+  label(P,P.sx(2.281),P.sy(0.3)-8,"t = 2.28","middle","var(--ssr)");
+  label(P,P.sx(-4.3),P.sy(0.36),"p-value = 0.026 + 0.026 = 0.052","start","var(--sse)");
+}
+
+/* ---------- routing ---------- */
+const VIEWS=["use","pick","split","real"];
+function route(){const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"use";
+  VIEWS.forEach(k=>{document.getElementById("v-"+k).hidden=k!==v});
+  document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===v?"page":"false"));}
+window.addEventListener("hashchange",route);
+addShuffles(1000);last=null;
+r1();r2();r3();r4();r4t();route();
+</script>
+
+</body>
+</html>
